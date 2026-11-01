@@ -115,7 +115,7 @@ task-tracker [--file PATH] <command> [options]
 | Option | Description |
 |---|---|
 | `-f PATH`, `--file PATH` | Storage file to use. |
-| `--version` | Print the version and exit. |
+| `--version` | Print the version (e.g. `task-tracker 1.0.0`) and exit 0. |
 | `-h`, `--help` | Show help (works on every subcommand too). |
 
 The storage file is chosen in this order: `--file`, then the
@@ -128,6 +128,9 @@ export TASK_TRACKER_FILE=~/tasks.json && task-tracker list
 task-tracker --version
 task-tracker add --help
 ```
+
+The version is defined once, as `__version__` in `task_tracker/__init__.py`;
+`pyproject.toml` reads it from there, so bump it only in that file.
 
 ### `add`: create a task
 

@@ -1,11 +1,19 @@
+import io
 import json
 import os
 import subprocess
 import sys
+import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
 from tests.helpers import TempDirTestCase
+
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:  # Python 3.10
+    tomllib = None
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -183,3 +191,44 @@ class PersistenceAcrossProcessesTests(TempDirTestCase):
         result = self.cli("list")
         self.assertEqual(result.returncode, 3)
         self.assertNotIn("Traceback", result.stderr)
+
+
+class VersionFlagTests(TempDirTestCase):
+    def test_version_prints_name_and_version(self):
+        from task_tracker import __version__
+
+        out = io.StringIO()
+        # argparse's version action writes to sys.stdout directly.
+        with redirect_stdout(out):
+            code, _, err = self.run_cli("--version")
+        self.assertEqual(code, 0)
+        self.assertEqual(out.getvalue().strip(), f"task-tracker {__version__}")
+        self.assertEqual(err, "")
+        self.assertFalse(self.store_path.exists(), "--version must not create storage")
+
+    def test_version_from_subprocess(self):
+        from task_tracker import __version__
+
+        env = {k: v for k, v in os.environ.items() if k != "TASK_TRACKER_FILE"}
+        env["PYTHONPATH"] = str(PROJECT_ROOT)
+        result = subprocess.run(
+            [sys.executable, "-m", "task_tracker", "--version"],
+            cwd=self.tmp_path,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), f"task-tracker {__version__}")
+
+    @unittest.skipIf(tomllib is None, "tomllib needs Python 3.11+")
+    def test_pyproject_reads_version_from_package(self):
+        with open(PROJECT_ROOT / "pyproject.toml", "rb") as fh:
+            config = tomllib.load(fh)
+        self.assertNotIn("version", config["project"], "version must live only in __init__.py")
+        self.assertIn("version", config["project"]["dynamic"])
+        self.assertEqual(
+            config["tool"]["setuptools"]["dynamic"]["version"],
+            {"attr": "task_tracker.__version__"},
+        )
