@@ -1,0 +1,6 @@
+__pycache__/
+*.egg-info/
+build/
+.venv/
+tasks.json
+tasks.json.corrupt-*
